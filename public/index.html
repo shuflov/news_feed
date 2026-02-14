@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>News Feed</title>
+  <style></style>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="header">
+    <h1>News Feed</h1>
+    <button class="dark-mode-toggle" id="darkModeToggle">
+      🌙 Dark Mode
+    </button>
+  </div>
+
+  <section class="feed-controls">
+    <button id="refreshBtn" class="refresh-btn">Refresh Feed</button>
+    <button id="manageSourcesBtn" class="manage-btn">Manage Sources</button>
+  </section>
+
+  <section id="sourcesPanel" class="sources-panel" style="display: none;">
+    <div class="panel-header">
+      <h2>Manage Sources</h2>
+      <button id="closeSourcesBtn" class="close-btn">&times;</button>
+    </div>
+    
+    <div class="add-source-section">
+      <h3>Add New Source</h3>
+      <form id="addForm">
+        <input placeholder="Name" id="name" required>
+        <input placeholder="URL" id="url" required>
+        <select id="type" title="Select Source Type">
+          <option value="rss">RSS</option>
+        </select>
+        <button type="submit">Add Source</button>
+      </form>
+    </div>
+
+    <div class="sources-list-section">
+      <h3>Current Sources</h3>
+      <div id="sourcesList"></div>
+    </div>
+  </section>
+
+  <section id="feed"></section>
+
+  <script>
+    // Dark mode toggle functionality
+    const darkModeToggle = document.getElementById('darkModeToggle');
+    const body = document.body;
+    
+    // Check for saved theme preference or default to system preference
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark') {
+      body.classList.add('dark-mode');
+      updateToggleButton(true);
+    } else if (savedTheme === 'light') {
+      body.classList.add('light-mode');
+      updateToggleButton(false);
+    } else {
+      // Use system preference
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      updateToggleButton(prefersDark);
+    }
+    
+    darkModeToggle.addEventListener('click', () => {
+      const isDark = body.classList.toggle('dark-mode');
+      body.classList.toggle('light-mode');
+      
+      // Save preference
+      localStorage.setItem('theme', isDark ? 'dark' : 'light');
+      updateToggleButton(isDark);
+    });
+    
+    function updateToggleButton(isDark) {
+      darkModeToggle.textContent = isDark ? '☀️ Light Mode' : '🌙 Dark Mode';
+    }
+
+    async function loadFeed() {
+      try {
+        const res = await fetch('/api/feed');
+        
+        // Check if response is OK
+        if (!res.ok) {
+          throw new Error(`Server error: ${res.status}`);
+        }
+        
+        // Check if response is actually JSON
+        const contentType = res.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          throw new Error('Server returned non-JSON response');
+        }
+        
+        let articles = await res.json();
+        // Shuffle articles for random order
+        articles = articles.sort(() => Math.random() - 0.5);
+        const container = document.getElementById('feed');
+        container.innerHTML = '';
+        
+        if (articles.length === 0) {
+          container.innerHTML = '<p>No articles yet. Add a source and wait for the cron job to fetch articles.</p>';
+          return;
+        }
+        
+        articles.forEach(a => {
+          const div = document.createElement('div');
+          div.className = 'article';
+          div.innerHTML = `
+  <h3><a href="${a.link}" target="_blank">${a.title}</a></h3>
+  <p class="summary">${a.summary}</p>
+  <div class="meta">
+    <span>${new Date(a.published_at).toLocaleString()}</span>
+    <span>${a.sourceName}</span>
+  </div>
+`;
+          container.appendChild(div);
+        });
+      } catch (error) {
+        console.error('Error loading feed:', error);
+        document.getElementById('feed').innerHTML = 
+          `<p style="color:red;">Error loading feed: ${error.message}</p>`;
+      }
+    }
+
+    document.getElementById('addForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const name = document.getElementById('name').value;
+      const url = document.getElementById('url').value;
+      const type = document.getElementById('type').value;
+      await fetch('/api/sources', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({name, url, type})
+      });
+      e.target.reset();
+      loadSources(); // Refresh the sources list
+      alert('Source added – it will be fetched on the next schedule.');
+    });
+
+    // Manual refresh button
+    document.getElementById('refreshBtn').addEventListener('click', () => {
+      loadFeed();
+    });
+
+    // Sources panel management
+    const sourcesPanel = document.getElementById('sourcesPanel');
+    const manageSourcesBtn = document.getElementById('manageSourcesBtn');
+    const closeSourcesBtn = document.getElementById('closeSourcesBtn');
+
+    manageSourcesBtn.addEventListener('click', () => {
+      sourcesPanel.style.display = 'block';
+      loadSources();
+    });
+
+    closeSourcesBtn.addEventListener('click', () => {
+      sourcesPanel.style.display = 'none';
+    });
+
+    async function loadSources() {
+      try {
+        const res = await fetch('/api/sources');
+        const sources = await res.json();
+        const container = document.getElementById('sourcesList');
+        
+        if (sources.length === 0) {
+          container.innerHTML = '<p>No sources added yet.</p>';
+          return;
+        }
+        
+        container.innerHTML = sources.map(s => `
+          <div class="source-item">
+            <div class="source-info">
+              <strong>${s.name}</strong>
+              <span class="source-type">${s.type}</span>
+              <span class="source-status ${s.enabled ? 'enabled' : 'disabled'}">${s.enabled ? 'Enabled' : 'Disabled'}</span>
+            </div>
+            <div class="source-actions">
+              <button onclick="deleteSource(${s.id})" class="delete-btn">Delete</button>
+            </div>
+          </div>
+        `).join('');
+      } catch (error) {
+        console.error('Error loading sources:', error);
+        document.getElementById('sourcesList').innerHTML = 
+          `<p style="color:red;">Error loading sources</p>`;
+      }
+    }
+
+    window.deleteSource = async function(id) {
+      if (!confirm('Are you sure you want to delete this source?')) return;
+      
+      try {
+        // Note: You'll need to add a DELETE endpoint to server.js
+        const res = await fetch(`/api/sources/${id}`, {
+          method: 'DELETE'
+        });
+        
+        if (res.ok) {
+          loadSources();
+        } else {
+          alert('Failed to delete source');
+        }
+      } catch (error) {
+        console.error('Error deleting source:', error);
+        alert('Error deleting source');
+      }
+    };
+
+    loadFeed();
+    // Auto-refresh every minute
+    setInterval(loadFeed, 60000);
+  </script>
+</body>
+</html>
