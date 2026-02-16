@@ -87,12 +87,23 @@ app.get('/api/feed', (req, res) => {
 app.get('/api/stock/:symbol', async (req, res) => {
   try {
     const symbol = req.params.symbol;
-    const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1mo`);
+    const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1mo`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      console.error(`Yahoo API error: ${response.status} for symbol ${symbol}`);
+      return res.status(502).json({ error: `Yahoo Finance API returned ${response.status}` });
+    }
+    
     const data = await response.json();
     res.json(data);
   } catch (e) {
-    console.error('Error fetching stock data:', e);
-    res.status(500).json({ error: 'Failed to fetch stock data' });
+    console.error('Error fetching stock data:', e.message);
+    res.status(500).json({ error: 'Failed to fetch stock data', details: e.message });
   }
 });
 
