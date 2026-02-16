@@ -83,27 +83,55 @@ app.get('/api/feed', (req, res) => {
   }
 });
 
-// 4️⃣ Proxy stock data from Yahoo Finance
-app.get('/api/stock/:symbol', async (req, res) => {
+// 4️⃣ Stock data endpoint (using mock data for demo)
+const mockStockData = {
+  'TSLA': { price: 248.50, change: 5.25, changePercent: 2.16 },
+  'BTC-USD': { price: 67432.18, change: 1234.56, changePercent: 1.87 },
+  'TOY.TO': { price: 42.35, change: -0.85, changePercent: -1.97 },
+  '^GSPC': { price: 5823.45, change: 15.30, changePercent: 0.26 }
+};
+
+app.get('/api/stock/:symbol', (req, res) => {
   try {
     const symbol = req.params.symbol;
-    const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1mo`, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Accept': 'application/json'
-      }
-    });
+    const mockData = mockStockData[symbol];
     
-    if (!response.ok) {
-      console.error(`Yahoo API error: ${response.status} for symbol ${symbol}`);
-      return res.status(502).json({ error: `Yahoo Finance API returned ${response.status}` });
+    if (!mockData) {
+      return res.status(404).json({ error: 'Symbol not found' });
     }
     
-    const data = await response.json();
-    res.json(data);
+    // Generate 30 days of mock historical data
+    const prices = [];
+    const timestamps = [];
+    const now = Date.now();
+    const oneDay = 24 * 60 * 60 * 1000;
+    
+    for (let i = 29; i >= 0; i--) {
+      timestamps.push(Math.floor((now - i * oneDay) / 1000));
+      // Random price around the current price
+      const randomVariation = (Math.random() - 0.5) * mockData.price * 0.1;
+      prices.push(mockData.price + randomVariation);
+    }
+    
+    res.json({
+      chart: {
+        result: [{
+          meta: {
+            symbol: symbol,
+            regularMarketPrice: mockData.price
+          },
+          timestamp: timestamps,
+          indicators: {
+            quote: [{
+              close: prices
+            }]
+          }
+        }]
+      }
+    });
   } catch (e) {
-    console.error('Error fetching stock data:', e.message);
-    res.status(500).json({ error: 'Failed to fetch stock data', details: e.message });
+    console.error('Error generating stock data:', e);
+    res.status(500).json({ error: 'Failed to generate stock data' });
   }
 });
 
