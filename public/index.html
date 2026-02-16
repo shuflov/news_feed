@@ -15,26 +15,6 @@
     </button>
   </div>
 
-  <div id="stockChartContainer" class="stock-chart-container">
-    <div class="stock-header">
-      <h3>Market Watch</h3>
-      <button id="toggleChartBtn" class="toggle-chart-btn">−</button>
-    </div>
-    <div id="stockChartContent" class="stock-chart-content">
-      <div class="stock-buttons">
-        <button class="stock-btn active" data-symbol="TSLA">TESLA</button>
-        <button class="stock-btn" data-symbol="BTC-USD">BTC</button>
-        <button class="stock-btn" data-symbol="TOY.TO">Spinmaster</button>
-        <button class="stock-btn" data-symbol="^GSPC">S&P 500</button>
-      </div>
-      <div class="stock-info">
-        <span id="currentPrice" class="current-price">--</span>
-        <span id="priceChange" class="price-change">--</span>
-      </div>
-      <canvas id="stockChart"></canvas>
-    </div>
-  </div>
-
   <section class="feed-controls">
     <button id="refreshBtn" class="refresh-btn">Refresh Feed</button>
     <button id="manageSourcesBtn" class="manage-btn">Manage Sources</button>
@@ -61,6 +41,26 @@
     <div class="sources-list-section">
       <h3>Current Sources</h3>
       <div id="sourcesList"></div>
+    </div>
+  </section>
+
+  <section id="stockChartContainer" class="stock-chart-container">
+    <div class="panel-header">
+      <h2>Market Watch</h2>
+      <button id="toggleChartBtn" class="toggle-chart-btn">−</button>
+    </div>
+    <div id="stockChartContent" class="stock-chart-content">
+      <div class="stock-buttons">
+        <button class="stock-btn active" data-symbol="TSLA">TESLA</button>
+        <button class="stock-btn" data-symbol="BTC-USD">BTC</button>
+        <button class="stock-btn" data-symbol="TOY.TO">Spinmaster</button>
+        <button class="stock-btn" data-symbol="^GSPC">S&P 500</button>
+      </div>
+      <div class="stock-info">
+        <span id="currentPrice" class="current-price">--</span>
+        <span id="priceChange" class="price-change">--</span>
+      </div>
+      <canvas id="stockChart"></canvas>
     </div>
   </section>
 
