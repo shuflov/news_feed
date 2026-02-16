@@ -5,6 +5,7 @@ const path = require('path');
 const cron = require('node-cron');
 const fetcher = require('./utils/fetcher');
 const ai = require('./utils/ai');
+const fetch = require('node-fetch');
 
 const app = express();
 app.use(express.json());
@@ -79,6 +80,19 @@ app.get('/api/feed', (req, res) => {
   } catch (e) {
     console.error('Error reading articles:', e);
     res.status(500).json({ error: 'Failed to read articles' });
+  }
+});
+
+// 4️⃣ Proxy stock data from Yahoo Finance
+app.get('/api/stock/:symbol', async (req, res) => {
+  try {
+    const symbol = req.params.symbol;
+    const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1mo`);
+    const data = await response.json();
+    res.json(data);
+  } catch (e) {
+    console.error('Error fetching stock data:', e);
+    res.status(500).json({ error: 'Failed to fetch stock data' });
   }
 });
 

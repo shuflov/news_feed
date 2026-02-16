@@ -259,8 +259,8 @@
 
     async function loadStockData(symbol) {
       try {
-        // Using Yahoo Finance proxy API
-        const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1mo`);
+        // Using backend proxy to avoid CORS
+        const response = await fetch(`/api/stock/${symbol}`);
         const data = await response.json();
         
         if (data.chart && data.chart.result && data.chart.result[0]) {
