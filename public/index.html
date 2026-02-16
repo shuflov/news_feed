@@ -5,6 +5,7 @@
   <title>News Feed</title>
   <style></style>
   <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
   <div class="header">
@@ -12,6 +13,26 @@
     <button class="dark-mode-toggle" id="darkModeToggle">
       🌙 Dark Mode
     </button>
+  </div>
+
+  <div id="stockChartContainer" class="stock-chart-container">
+    <div class="stock-header">
+      <h3>Market Watch</h3>
+      <button id="toggleChartBtn" class="toggle-chart-btn">−</button>
+    </div>
+    <div id="stockChartContent" class="stock-chart-content">
+      <div class="stock-buttons">
+        <button class="stock-btn active" data-symbol="TSLA">TESLA</button>
+        <button class="stock-btn" data-symbol="BTC-USD">BTC</button>
+        <button class="stock-btn" data-symbol="TOY.TO">Spinmaster</button>
+        <button class="stock-btn" data-symbol="^GSPC">S&P 500</button>
+      </div>
+      <div class="stock-info">
+        <span id="currentPrice" class="current-price">--</span>
+        <span id="priceChange" class="price-change">--</span>
+      </div>
+      <canvas id="stockChart"></canvas>
+    </div>
   </div>
 
   <section class="feed-controls">
@@ -210,6 +231,134 @@
     loadFeed();
     // Auto-refresh every minute
     setInterval(loadFeed, 60000);
+
+    // Stock Chart Functionality
+    let stockChart = null;
+    let currentSymbol = 'TSLA';
+
+    // Toggle chart visibility
+    const stockChartContent = document.getElementById('stockChartContent');
+    const toggleChartBtn = document.getElementById('toggleChartBtn');
+    let isChartMinimized = false;
+
+    toggleChartBtn.addEventListener('click', () => {
+      isChartMinimized = !isChartMinimized;
+      stockChartContent.style.display = isChartMinimized ? 'none' : 'block';
+      toggleChartBtn.textContent = isChartMinimized ? '+' : '−';
+    });
+
+    // Stock button click handlers
+    document.querySelectorAll('.stock-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.stock-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentSymbol = btn.dataset.symbol;
+        loadStockData(currentSymbol);
+      });
+    });
+
+    async function loadStockData(symbol) {
+      try {
+        // Using Yahoo Finance proxy API
+        const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1mo`);
+        const data = await response.json();
+        
+        if (data.chart && data.chart.result && data.chart.result[0]) {
+          const result = data.chart.result[0];
+          const prices = result.indicators.quote[0].close;
+          const timestamps = result.timestamp;
+          const meta = result.meta;
+          
+          // Update current price and change
+          const currentPrice = prices[prices.length - 1];
+          const previousPrice = prices[prices.length - 2];
+          const change = currentPrice - previousPrice;
+          const changePercent = (change / previousPrice) * 100;
+          
+          document.getElementById('currentPrice').textContent = `$${currentPrice.toFixed(2)}`;
+          const changeEl = document.getElementById('priceChange');
+          changeEl.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)} (${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%)`;
+          changeEl.className = `price-change ${change >= 0 ? 'positive' : 'negative'}`;
+          
+          // Prepare chart data
+          const labels = timestamps.map(t => new Date(t * 1000).toLocaleDateString());
+          
+          // Destroy existing chart if any
+          if (stockChart) {
+            stockChart.destroy();
+          }
+          
+          // Create new chart
+          const ctx = document.getElementById('stockChart').getContext('2d');
+          const isDark = document.body.classList.contains('dark-mode');
+          
+          stockChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: labels,
+              datasets: [{
+                label: symbol,
+                data: prices,
+                borderColor: change >= 0 ? '#28a745' : '#dc3545',
+                backgroundColor: change >= 0 ? 'rgba(40, 167, 69, 0.1)' : 'rgba(220, 53, 69, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 0,
+                pointHoverRadius: 4
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  display: false
+                },
+                tooltip: {
+                  mode: 'index',
+                  intersect: false,
+                  backgroundColor: isDark ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.9)',
+                  titleColor: isDark ? '#fff' : '#333',
+                  bodyColor: isDark ? '#fff' : '#333',
+                  borderColor: isDark ? '#444' : '#ddd',
+                  borderWidth: 1
+                }
+              },
+              scales: {
+                x: {
+                  display: false
+                },
+                y: {
+                  display: true,
+                  grid: {
+                    color: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+                  },
+                  ticks: {
+                    color: isDark ? '#ccc' : '#666'
+                  }
+                }
+              },
+              interaction: {
+                mode: 'nearest',
+                axis: 'x',
+                intersect: false
+              }
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Error loading stock data:', error);
+        document.getElementById('currentPrice').textContent = 'Error';
+        document.getElementById('priceChange').textContent = 'Failed to load';
+      }
+    }
+
+    // Load initial stock data
+    loadStockData(currentSymbol);
+
+    // Refresh stock data every 5 minutes
+    setInterval(() => loadStockData(currentSymbol), 300000);
   </script>
 </body>
 </html>
