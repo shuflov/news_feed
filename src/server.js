@@ -59,6 +59,35 @@ app.post('/api/sources', (req, res) => {
     if (!name || !url || !type) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
+
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(url);
+    } catch {
+      return res.status(400).json({ error: 'Invalid URL format' });
+    }
+
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+      return res.status(400).json({ error: 'URL must use HTTP or HTTPS' });
+    }
+
+    const hostname = parsedUrl.hostname.toLowerCase();
+    const privatePatterns = [
+      /^localhost$/i,
+      /^127\.\d+\.\d+\.\d+$/,
+      /^::1$/,
+      /^0\.\d+\.\d+\.\d+$/,
+      /^10\.\d+\.\d+\.\d+$/,
+      /^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/,
+      /^192\.168\.\d+\.\d+$/,
+      /\.local$/i,
+      /^localhost\.localdomain$/i,
+    ];
+
+    if (privatePatterns.some(pattern => pattern.test(hostname))) {
+      return res.status(400).json({ error: 'Private/local URLs are not allowed' });
+    }
+
     const sources = JSON.parse(fs.readFileSync(sourcesPath, 'utf8'));
     const id = Date.now();
     sources.push({ id, name, url, type, enabled: true });
@@ -277,7 +306,7 @@ app.get('/text/plain', (req, res) => {
         text += `${i + 1}. ${a.title}\n`;
         text += `   Source: ${a.sourceName} | ${date}\n`;
         text += `   Link: ${a.link}\n`;
-        text += `   ${a.summary.replace(/\n/g, ' ')}\n`;
+        text += `   ${(a.summary || '').replace(/\n/g, ' ')}\n`;
         text += '\n' + '-'.repeat(80) + '\n\n';
       }
     }
@@ -382,7 +411,7 @@ app.use(express.static(path.join(__dirname, '../public')));
 
 // Redirect root to text view (default)
 app.get('/', (req, res) => {
-  res.redirect('/text');
+  res.redirect('/text/plain');
 });
 
 // Graphical version
