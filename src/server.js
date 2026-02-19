@@ -353,7 +353,7 @@ app.get('/text', (req, res) => {
   <title>News Feed - Text Mode</title>
   <style>
     body { font-family: monospace; line-height: 1.6; max-width: 80ch; margin: 2rem auto; padding: 0 1rem; }
-    h1 { border-bottom: 2px solid #000; padding-bottom: 0.5rem; margin-bottom: 0.5rem; }
+    h1 { border-bottom: 2px solid #999; padding-bottom: 0.5rem; margin-bottom: 0.5rem; color: #555; }
     .last-updated-line { font-weight: bold; color: #0066cc; margin: 0.5rem 0 1rem 0; }
     h2 { margin-top: 2rem; }
     .article { margin: 2rem 0; border-bottom: 1px solid #ccc; padding-bottom: 1rem; }
@@ -424,7 +424,7 @@ app.use(express.static(path.join(__dirname, '../public')));
 
 // Redirect root to text view (default)
 app.get('/', (req, res) => {
-  res.redirect('/text/plain');
+  res.redirect('/text');
 });
 
 // Graphical version
