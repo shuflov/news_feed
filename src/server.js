@@ -147,11 +147,15 @@ async function fetchYahooFinance(symbol) {
     if (data.chart && data.chart.result && data.chart.result[0]) {
       const result = data.chart.result[0];
       const meta = result.meta;
-      const timestamps = result.timestamp;
       const prices = result.indicators.quote[0].close;
       
       const currentPrice = meta.regularMarketPrice || prices[prices.length - 1];
-      const previousPrice = prices[prices.length - 2] || prices[prices.length - 1];
+      const previousPrice = prices[prices.length - 2] || currentPrice;
+      
+      if (!currentPrice || !previousPrice || previousPrice === 0) {
+        throw new Error('Invalid price data');
+      }
+      
       const change = currentPrice - previousPrice;
       const changePercent = (change / previousPrice) * 100;
       

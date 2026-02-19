@@ -7,7 +7,6 @@ const parser = new Parser();
  * [{ title, link, published, content }]
  */
 async function fetchSource(source) {
-  // Very simple handling for RSS feeds only (extend later)
   if (source.type === 'rss') {
     const feed = await parser.parseURL(source.url);
     return feed.items.map(i => ({
@@ -17,7 +16,8 @@ async function fetchSource(source) {
       content: i.contentSnippet || i.content || ''
     }));
   }
-  // TODO: add JSON/HTML handling
+  
+  console.warn(`Unknown source type "${source.type}" for ${source.name}`);
   return [];
 }
 
