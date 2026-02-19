@@ -252,8 +252,6 @@
     };
 
     loadFeed();
-    // Auto-refresh every minute
-    setInterval(loadFeed, 60000);
 
     // Stocks Grid Functionality
     const stockSymbols = {
@@ -277,13 +275,21 @@
           const isPositive = stock.change >= 0;
           const displayName = stockSymbols[stock.symbol] || stock.symbol;
           
-          card.innerHTML = `
-            <div class="stock-symbol">${displayName}</div>
-            <div class="stock-price">$${stock.price.toFixed(2)}</div>
-            <div class="stock-change ${isPositive ? 'positive' : 'negative'}">
-              ${isPositive ? '+' : ''}${stock.change.toFixed(2)} (${isPositive ? '+' : ''}${stock.changePercent.toFixed(2)}%)
-            </div>
-          `;
+          if (stock.error) {
+            card.innerHTML = `
+              <div class="stock-symbol">${displayName}</div>
+              <div class="stock-price">--</div>
+              <div class="stock-change">Unavailable</div>
+            `;
+          } else {
+            card.innerHTML = `
+              <div class="stock-symbol">${displayName}</div>
+              <div class="stock-price">$${stock.price.toFixed(2)}</div>
+              <div class="stock-change ${isPositive ? 'positive' : 'negative'}">
+                ${isPositive ? '+' : ''}${stock.change.toFixed(2)} (${isPositive ? '+' : ''}${stock.changePercent.toFixed(2)}%)
+              </div>
+            `;
+          }
           grid.appendChild(card);
         });
         
@@ -302,8 +308,8 @@
       loadStocks();
     });
 
-    // Refresh stocks every 30 seconds for live updates
-    setInterval(loadStocks, 30000);
+    // Refresh stocks every 5 minutes for live updates
+    setInterval(loadStocks, 300000);
   </script>
 </body>
 </html>

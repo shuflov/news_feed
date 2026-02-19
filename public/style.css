@@ -412,8 +412,8 @@ body.dark-mode .article {
     .stocks-container {
       border: 1px solid #ddd;
       border-radius: 8px;
-      padding: 1.5rem;
-      margin-bottom: 2rem;
+      padding: 0.75rem;
+      margin-bottom: 1rem;
       background: #f9f9f9;
     }
 
@@ -423,48 +423,21 @@ body.dark-mode .article {
     }
 
     .stocks-container .panel-header {
-      margin-bottom: 1rem;
-    }
-
-    .last-update {
-      font-size: 0.85rem;
-      color: #666;
-    }
-
-    body.dark-mode .last-update {
-      color: #888;
+      margin-bottom: 0.5rem;
     }
 
     .stocks-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 1rem;
-    }
-
-    @media (max-width: 900px) {
-      .stocks-grid {
-        grid-template-columns: repeat(2, 1fr);
-      }
-    }
-
-    @media (max-width: 600px) {
-      .stocks-grid {
-        grid-template-columns: 1fr;
-      }
+      gap: 0.5rem;
     }
 
     .stock-card {
       background: white;
       border: 1px solid #ddd;
-      border-radius: 8px;
-      padding: 1rem;
+      border-radius: 4px;
+      padding: 0.5rem;
       text-align: center;
-      transition: transform 0.2s, box-shadow 0.2s;
-    }
-
-    .stock-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
 
     body.dark-mode .stock-card {
@@ -472,19 +445,11 @@ body.dark-mode .article {
       border-color: #444;
     }
 
-    .stock-card.loading {
-      opacity: 0.6;
-    }
-
-    .stock-card.error {
-      color: #dc3545;
-    }
-
     .stock-symbol {
-      font-size: 0.85rem;
+      font-size: 0.7rem;
       color: #666;
       text-transform: uppercase;
-      margin-bottom: 0.5rem;
+      margin-bottom: 0.25rem;
     }
 
     body.dark-mode .stock-symbol {
@@ -492,10 +457,10 @@ body.dark-mode .article {
     }
 
     .stock-price {
-      font-size: 1.5rem;
+      font-size: 1rem;
       font-weight: bold;
       color: #333;
-      margin-bottom: 0.25rem;
+      margin-bottom: 0.15rem;
     }
 
     body.dark-mode .stock-price {
@@ -503,7 +468,7 @@ body.dark-mode .article {
     }
 
     .stock-change {
-      font-size: 0.9rem;
+      font-size: 0.75rem;
       font-weight: 500;
     }
 

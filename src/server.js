@@ -130,11 +130,7 @@ app.get('/api/feed', (req, res) => {
 const STOCKS = ['TSLA', 'BTC-USD', 'TOY.TO', '^GSPC'];
 
 async function fetchYahooFinance(symbol) {
-  console.log(`[DEBUG] Starting fetch for ${symbol}`);
-  console.log(`[DEBUG] typeof fetch: ${typeof fetch}`);
-  console.log(`[DEBUG] typeof globalThis.fetch: ${typeof globalThis.fetch}`);
   try {
-    // Using Yahoo Finance chart API via a proxy approach
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=2d`;
     const response = await fetch(url, {
       headers: {
@@ -171,7 +167,7 @@ async function fetchYahooFinance(symbol) {
     
     throw new Error('Invalid response format');
   } catch (error) {
-    console.error(`Error fetching ${symbol}:`, error.message);
+    console.error(`Error fetching ${symbol}:`, error.message, error.cause || '');
     return null;
   }
 }
@@ -180,7 +176,20 @@ async function fetchYahooFinance(symbol) {
 app.get('/api/stocks', async (req, res) => {
   try {
     const results = await Promise.all(STOCKS.map(fetchYahooFinance));
-    const stocks = results.filter(s => s !== null);
+    let stocks = results.filter(s => s !== null);
+    
+    if (stocks.length === 0) {
+      stocks = STOCKS.map(symbol => ({
+        symbol,
+        price: 0,
+        change: 0,
+        changePercent: 0,
+        currency: 'USD',
+        timestamp: new Date().toISOString(),
+        error: 'API unavailable'
+      }));
+    }
+    
     res.json(stocks);
   } catch (e) {
     console.error('Error fetching stocks:', e);
