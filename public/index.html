@@ -140,8 +140,8 @@
   <h3><a href="${a.link}" target="_blank">${a.title}</a></h3>
   <p class="summary">${a.summary}</p>
   <div class="meta">
-    <span>${new Date(a.published_at).toLocaleString()}</span>
-    <span>${a.sourceName}</span>
+    <span class="meta-date">${new Date(a.published_at).toLocaleString()}</span>
+    <span class="meta-source">${a.sourceName}</span>
   </div>
 `;
           container.appendChild(div);
