@@ -4,12 +4,17 @@ const session = require('express-session');
 const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
+const cors = require('cors');
 const fetcher = require('./utils/fetcher');
 const ai = require('./utils/ai');
 
-
-
 const app = express();
+
+app.use(cors({
+  origin: 'https://shuflov.github.io',
+  credentials: true
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -18,8 +23,9 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: { 
-    secure: process.env.NODE_ENV === 'production',
+    secure: true,
     httpOnly: true,
+    sameSite: 'none',
     maxAge: 30 * 24 * 60 * 60 * 1000 
   }
 }));
@@ -167,7 +173,6 @@ app.get('/api/auth/me', (req, res) => {
 });
 
 // ---------- API ----------
-// 1️⃣ Get current sources
 app.get('/api/sources', requireAuth, (req, res) => {
   try {
     const userPaths = getUserDataPath(req.session.userId);
@@ -179,7 +184,6 @@ app.get('/api/sources', requireAuth, (req, res) => {
   }
 });
 
-// 2️⃣ Add a new source
 app.post('/api/sources', requireAuth, (req, res) => {
   try {
     const { name, url, type } = req.body;
@@ -227,7 +231,6 @@ app.post('/api/sources', requireAuth, (req, res) => {
   }
 });
 
-// 2b️⃣ Delete a source
 app.delete('/api/sources/:id', requireAuth, (req, res) => {
   try {
     const id = parseInt(req.params.id);
@@ -242,12 +245,10 @@ app.delete('/api/sources/:id', requireAuth, (req, res) => {
   }
 });
 
-// 3️⃣ Get the feed (latest articles)
 app.get('/api/feed', requireAuth, (req, res) => {
   try {
     const userPaths = getUserDataPath(req.session.userId);
     const articles = JSON.parse(fs.readFileSync(userPaths.articles, 'utf8'));
-    // newest first
     articles.sort((a, b) => new Date(b.published_at) - new Date(a.published_at));
     res.json(articles);
   } catch (e) {
@@ -256,7 +257,7 @@ app.get('/api/feed', requireAuth, (req, res) => {
   }
 });
 
-// 4️⃣ Stock data endpoint (fetching real data from Yahoo Finance)
+// ---------- Stocks ----------
 const STOCKS = ['TSLA', 'BTC-USD', 'TOY.TO', '^GSPC'];
 
 async function fetchYahooFinance(symbol) {
@@ -268,9 +269,7 @@ async function fetchYahooFinance(symbol) {
       }
     });
     
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
     
     const data = await response.json();
     
@@ -290,10 +289,10 @@ async function fetchYahooFinance(symbol) {
       const changePercent = (change / previousPrice) * 100;
       
       return {
-        symbol: symbol,
+        symbol,
         price: currentPrice,
-        change: change,
-        changePercent: changePercent,
+        change,
+        changePercent,
         currency: meta.currency || 'USD',
         timestamp: new Date().toISOString()
       };
@@ -301,12 +300,11 @@ async function fetchYahooFinance(symbol) {
     
     throw new Error('Invalid response format');
   } catch (error) {
-    console.error(`Error fetching ${symbol}:`, error.message, error.cause || '');
+    console.error(`Error fetching ${symbol}:`, error.message);
     return null;
   }
 }
 
-// Get all stocks
 app.get('/api/stocks', async (req, res) => {
   try {
     const results = await Promise.all(STOCKS.map(fetchYahooFinance));
@@ -331,16 +329,10 @@ app.get('/api/stocks', async (req, res) => {
   }
 });
 
-// Get single stock (for backward compatibility)
 app.get('/api/stock/:symbol', async (req, res) => {
   try {
-    const symbol = req.params.symbol;
-    const stock = await fetchYahooFinance(symbol);
-    
-    if (!stock) {
-      return res.status(404).json({ error: 'Symbol not found' });
-    }
-    
+    const stock = await fetchYahooFinance(req.params.symbol);
+    if (!stock) return res.status(404).json({ error: 'Symbol not found' });
     res.json(stock);
   } catch (e) {
     console.error('Error fetching stock:', e);
@@ -348,14 +340,12 @@ app.get('/api/stock/:symbol', async (req, res) => {
   }
 });
 
-// ---------- Manual Fetch Endpoint ----------
+// ---------- Manual Fetch ----------
 let isRunning = false;
 const MAX_ARTICLES = 200;
 
 async function fetchArticles(userId) {
-  if (isRunning) {
-    return { success: false, message: 'Fetch already in progress' };
-  }
+  if (isRunning) return { success: false, message: 'Fetch already in progress' };
   
   isRunning = true;
   console.log(`Starting manual fetch for user ${userId}...`);
@@ -372,7 +362,6 @@ async function fetchArticles(userId) {
         const items = await fetcher.fetchSource(src);
         
         for (const it of items) {
-          // skip if already stored (by link)
           if (articles.find(a => a.link === it.link)) continue;
 
           const summary = await ai.summarize(it.content);
@@ -392,7 +381,6 @@ async function fetchArticles(userId) {
       }
     }
 
-    // Keep only the most recent articles
     if (articles.length > MAX_ARTICLES) {
       articles = articles
         .sort((a, b) => new Date(b.fetched_at) - new Date(a.fetched_at))
@@ -400,7 +388,7 @@ async function fetchArticles(userId) {
     }
 
     fs.writeFileSync(userPaths.articles, JSON.stringify(articles, null, 2));
-    console.log(`Fetch complete. Total articles: ${articles.length}, New: ${newCount}`);
+    console.log(`Fetch complete. Total: ${articles.length}, New: ${newCount}`);
     return { success: true, message: `Fetched ${newCount} new articles. Total: ${articles.length}` };
   } catch (e) {
     console.error('Error in fetch:', e.message);
@@ -415,10 +403,9 @@ app.post('/api/fetch', requireAuth, async (req, res) => {
   res.json(result);
 });
 
-// ---------- Serve the frontend ----------
+// ---------- Serve Frontend ----------
 app.use(express.static(path.join(__dirname, '../public')));
 
-// Root - serve index.html
 app.get('/', (req, res) => {
   const indexPath = path.join(__dirname, '../public/index.html');
   if (fs.existsSync(indexPath)) {
@@ -428,7 +415,6 @@ app.get('/', (req, res) => {
   }
 });
 
-// Catch-all for SPA routing
 app.use((req, res) => {
   res.status(404).send('<h1>404 - Not Found</h1>');
 });
