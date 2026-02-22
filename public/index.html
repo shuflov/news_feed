@@ -168,6 +168,17 @@
   <script>
     const API_BASE = 'https://stealthier-amirah-duteously.ngrok-free.dev';
 
+    // Helper: adds ngrok header to every request
+    function apiFetch(url, opts = {}) {
+      return fetch(url, {
+        ...opts,
+        headers: {
+          'ngrok-skip-browser-warning': 'true',
+          ...(opts.headers || {})
+        }
+      });
+    }
+
     let isLoginMode = true;
 
     function showAuthError(msg) {
@@ -198,7 +209,7 @@
       const endpoint = isLoginMode ? `${API_BASE}/api/auth/login` : `${API_BASE}/api/auth/register`;
       
       try {
-        const res = await fetch(endpoint, {
+        const res = await apiFetch(endpoint, {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
@@ -221,7 +232,7 @@
 
     async function logout() {
       try {
-        await fetch(`${API_BASE}/api/auth/logout`, { method: 'POST' });
+        await apiFetch(`${API_BASE}/api/auth/logout`, { method: 'POST', credentials: 'include' });
       } catch (e) {}
       showAuth();
     }
@@ -245,7 +256,7 @@
 
     async function checkAuth() {
       try {
-        const res = await fetch(`${API_BASE}/api/auth/me`, { credentials: 'include' });
+        const res = await apiFetch(`${API_BASE}/api/auth/me`, { credentials: 'include' });
         if (res.ok) {
           const data = await res.json();
           currentUserEmail = data.email || '';
@@ -286,7 +297,7 @@
 
     async function loadFeed() {
       try {
-        const res = await fetch(`${API_BASE}/api/feed`, { credentials: 'include' });
+        const res = await apiFetch(`${API_BASE}/api/feed`, { credentials: 'include' });
         if (!res.ok) throw new Error(`Server error: ${res.status}`);
         
         const articles = await res.json();
@@ -294,7 +305,7 @@
         container.innerHTML = '';
         
         if (articles.length === 0) {
-          container.innerHTML = '<p>No articles yet. Add sources and click "Fetch Articles" to load them.</p>';
+          container.innerHTML = '<p>No articles yet. Add sources and click "Refresh Feed" to load them.</p>';
           return;
         }
         
@@ -326,11 +337,11 @@
       const type = document.getElementById('type').value;
       
       try {
-        const res = await fetch(`${API_BASE}/api/sources`, {
+        const res = await apiFetch(`${API_BASE}/api/sources`, {
           method: 'POST',
           credentials: 'include',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({name, url, type})
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, url, type })
         });
         
         if (!res.ok) {
@@ -352,7 +363,7 @@
       btn.textContent = 'Fetching...';
       
       try {
-        await fetch(`${API_BASE}/api/fetch`, { method: 'POST', credentials: 'include' });
+        await apiFetch(`${API_BASE}/api/fetch`, { method: 'POST', credentials: 'include' });
         await loadFeed();
       } catch (error) {
         console.error('Error refreshing feed:', error);
@@ -377,7 +388,7 @@
 
     async function loadSources() {
       try {
-        const res = await fetch(`${API_BASE}/api/sources`, { credentials: 'include' });
+        const res = await apiFetch(`${API_BASE}/api/sources`, { credentials: 'include' });
         const sources = await res.json();
         const container = document.getElementById('sourcesList');
         
@@ -408,7 +419,7 @@
       if (!confirm('Delete this source?')) return;
       
       try {
-        const res = await fetch(`${API_BASE}/api/sources/${id}`, {
+        const res = await apiFetch(`${API_BASE}/api/sources/${id}`, {
           method: 'DELETE',
           credentials: 'include'
         });
@@ -428,7 +439,7 @@
 
     async function loadStocks() {
       try {
-        const response = await fetch(`${API_BASE}/api/stocks`);
+        const response = await apiFetch(`${API_BASE}/api/stocks`);
         const stocks = await response.json();
         const grid = document.getElementById('stocksGrid');
         grid.innerHTML = '';
