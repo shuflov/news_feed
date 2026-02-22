@@ -1,5 +1,7 @@
 // src/server.js
 const express = require('express');
+const session = require('express-session');
+const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
 const fetcher = require('./utils/fetcher');
@@ -11,40 +13,165 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'news-feed-secret-key-change-in-production',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { 
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 30 * 24 * 60 * 60 * 1000 
+  }
+}));
+
 // Define paths
-const sourcesPath = path.join(__dirname, 'data/sources.json');
-const articlesPath = path.join(__dirname, 'data/articles.json');
+const dataDir = path.join(__dirname, '../data');
+const usersPath = path.join(dataDir, 'users.json');
 
 // ---------- Initialize data files ----------
-const dataDir = path.join(__dirname, 'data');
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
-if (!fs.existsSync(sourcesPath)) {
-  fs.writeFileSync(sourcesPath, '[]');
-}
-if (!fs.existsSync(articlesPath)) {
-  fs.writeFileSync(articlesPath, '[]');
+if (!fs.existsSync(usersPath)) {
+  fs.writeFileSync(usersPath, '[]');
 }
 
-// Auto-fetch articles on server startup
-setTimeout(() => {
-  console.log('Auto-fetching articles on server startup...');
-  fetchArticles()
-    .then(result => {
-      console.log('Startup fetch result:', result.message);
-    })
-    .catch(err => {
-      console.error('Startup fetch error:', err.message);
-      // Continue server operation even if fetch fails
+// Helper: get user data path
+function getUserDataPath(userId) {
+  const userDir = path.join(dataDir, 'users', userId.toString());
+  if (!fs.existsSync(userDir)) {
+    fs.mkdirSync(userDir, { recursive: true });
+  }
+  return {
+    dir: userDir,
+    sources: path.join(userDir, 'sources.json'),
+    articles: path.join(userDir, 'articles.json')
+  };
+}
+
+// Initialize user files if they don't exist
+function initUserFiles(userId) {
+  const userPaths = getUserDataPath(userId);
+  if (!fs.existsSync(userPaths.sources)) {
+    fs.writeFileSync(userPaths.sources, '[]');
+  }
+  if (!fs.existsSync(userPaths.articles)) {
+    fs.writeFileSync(userPaths.articles, '[]');
+  }
+}
+
+// Middleware: require auth
+function requireAuth(req, res, next) {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  next();
+}
+
+// ---------- Auth ----------
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password required' });
+    }
+
+    const users = JSON.parse(fs.readFileSync(usersPath, 'utf8'));
+    
+    if (users.find(u => u.email.toLowerCase() === email.toLowerCase())) {
+      return res.status(400).json({ error: 'Email already exists' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const userId = Date.now().toString(36) + Math.random().toString(36).substr(2);
+    
+    const newUser = {
+      id: userId,
+      email: email.toLowerCase(),
+      password: hashedPassword,
+      createdAt: new Date().toISOString()
+    };
+    
+    users.push(newUser);
+    fs.writeFileSync(usersPath, JSON.stringify(users, null, 2));
+    
+    initUserFiles(userId);
+    
+    req.session.userId = userId;
+    req.session.email = newUser.email;
+    
+    req.session.save((err) => {
+      if (err) {
+        console.error('Session save error:', err);
+      }
     });
-}, 1000); // Wait 1 second for server to fully start
+    
+    res.json({ success: true, userId, email: newUser.email });
+  } catch (e) {
+    console.error('Error registering:', e);
+    res.status(500).json({ error: 'Failed to register' });
+  }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password required' });
+    }
+
+    const users = JSON.parse(fs.readFileSync(usersPath, 'utf8'));
+    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+    
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const validPassword = await bcrypt.compare(password, user.password);
+    if (!validPassword) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    initUserFiles(user.id);
+    
+    req.session.userId = user.id;
+    req.session.email = user.email;
+    
+    req.session.save((err) => {
+      if (err) {
+        console.error('Session save error:', err);
+      }
+    });
+    
+    res.json({ success: true, userId: user.id, email: user.email });
+  } catch (e) {
+    console.error('Error logging in:', e);
+    res.status(500).json({ error: 'Failed to login' });
+  }
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      return res.status(500).json({ error: 'Failed to logout' });
+    }
+    res.json({ success: true });
+  });
+});
+
+app.get('/api/auth/me', (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  res.json({ userId: req.session.userId, email: req.session.email });
+});
 
 // ---------- API ----------
 // 1️⃣ Get current sources
-app.get('/api/sources', (req, res) => {
+app.get('/api/sources', requireAuth, (req, res) => {
   try {
-    const src = JSON.parse(fs.readFileSync(sourcesPath, 'utf8'));
+    const userPaths = getUserDataPath(req.session.userId);
+    const src = JSON.parse(fs.readFileSync(userPaths.sources, 'utf8'));
     res.json(src);
   } catch (e) {
     console.error('Error reading sources:', e);
@@ -53,7 +180,7 @@ app.get('/api/sources', (req, res) => {
 });
 
 // 2️⃣ Add a new source
-app.post('/api/sources', (req, res) => {
+app.post('/api/sources', requireAuth, (req, res) => {
   try {
     const { name, url, type } = req.body;
     if (!name || !url || !type) {
@@ -88,10 +215,11 @@ app.post('/api/sources', (req, res) => {
       return res.status(400).json({ error: 'Private/local URLs are not allowed' });
     }
 
-    const sources = JSON.parse(fs.readFileSync(sourcesPath, 'utf8'));
+    const userPaths = getUserDataPath(req.session.userId);
+    const sources = JSON.parse(fs.readFileSync(userPaths.sources, 'utf8'));
     const id = Date.now();
     sources.push({ id, name, url, type, enabled: true });
-    fs.writeFileSync(sourcesPath, JSON.stringify(sources, null, 2));
+    fs.writeFileSync(userPaths.sources, JSON.stringify(sources, null, 2));
     res.json({ success: true, id });
   } catch (e) {
     console.error('Error adding source:', e);
@@ -100,12 +228,13 @@ app.post('/api/sources', (req, res) => {
 });
 
 // 2b️⃣ Delete a source
-app.delete('/api/sources/:id', (req, res) => {
+app.delete('/api/sources/:id', requireAuth, (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    let sources = JSON.parse(fs.readFileSync(sourcesPath, 'utf8'));
+    const userPaths = getUserDataPath(req.session.userId);
+    let sources = JSON.parse(fs.readFileSync(userPaths.sources, 'utf8'));
     sources = sources.filter(s => s.id !== id);
-    fs.writeFileSync(sourcesPath, JSON.stringify(sources, null, 2));
+    fs.writeFileSync(userPaths.sources, JSON.stringify(sources, null, 2));
     res.json({ success: true });
   } catch (e) {
     console.error('Error deleting source:', e);
@@ -114,9 +243,10 @@ app.delete('/api/sources/:id', (req, res) => {
 });
 
 // 3️⃣ Get the feed (latest articles)
-app.get('/api/feed', (req, res) => {
+app.get('/api/feed', requireAuth, (req, res) => {
   try {
-    const articles = JSON.parse(fs.readFileSync(articlesPath, 'utf8'));
+    const userPaths = getUserDataPath(req.session.userId);
+    const articles = JSON.parse(fs.readFileSync(userPaths.articles, 'utf8'));
     // newest first
     articles.sort((a, b) => new Date(b.published_at) - new Date(a.published_at));
     res.json(articles);
@@ -222,17 +352,18 @@ app.get('/api/stock/:symbol', async (req, res) => {
 let isRunning = false;
 const MAX_ARTICLES = 200;
 
-async function fetchArticles() {
+async function fetchArticles(userId) {
   if (isRunning) {
     return { success: false, message: 'Fetch already in progress' };
   }
   
   isRunning = true;
-  console.log('Starting manual fetch...');
+  console.log(`Starting manual fetch for user ${userId}...`);
   
   try {
-    const sources = JSON.parse(fs.readFileSync(sourcesPath, 'utf8'));
-    let articles = JSON.parse(fs.readFileSync(articlesPath, 'utf8'));
+    const userPaths = getUserDataPath(userId);
+    const sources = JSON.parse(fs.readFileSync(userPaths.sources, 'utf8'));
+    let articles = JSON.parse(fs.readFileSync(userPaths.articles, 'utf8'));
     let newCount = 0;
 
     for (const src of sources.filter(s => s.enabled)) {
@@ -268,7 +399,7 @@ async function fetchArticles() {
         .slice(0, MAX_ARTICLES);
     }
 
-    fs.writeFileSync(articlesPath, JSON.stringify(articles, null, 2));
+    fs.writeFileSync(userPaths.articles, JSON.stringify(articles, null, 2));
     console.log(`Fetch complete. Total articles: ${articles.length}, New: ${newCount}`);
     return { success: true, message: `Fetched ${newCount} new articles. Total: ${articles.length}` };
   } catch (e) {
@@ -279,156 +410,16 @@ async function fetchArticles() {
   }
 }
 
-app.post('/api/fetch', async (req, res) => {
-  const result = await fetchArticles();
-  // If it's a form submission (browser), redirect back to text view
-  if (req.headers['content-type']?.includes('application/x-www-form-urlencoded') || !req.headers['accept']?.includes('application/json')) {
-    res.redirect('/text');
-  } else {
-    res.json(result);
-  }
+app.post('/api/fetch', requireAuth, async (req, res) => {
+  const result = await fetchArticles(req.session.userId);
+  res.json(result);
 });
-
-// ---------- Text/Terminal-friendly endpoints ----------
-app.get('/text/plain', (req, res) => {
-  try {
-    const articles = JSON.parse(fs.readFileSync(articlesPath, 'utf8'));
-    articles.sort((a, b) => new Date(b.published_at) - new Date(a.published_at));
-    
-    // Find the most recent fetch time
-    let lastUpdated = 'Never';
-    if (articles.length > 0) {
-      const lastFetch = articles
-        .map(a => new Date(a.fetched_at))
-        .sort((a, b) => b - a)[0];
-      lastUpdated = lastFetch.toLocaleString();
-    }
-    
-    let text = '=== NEWS FEED ===\n\n';
-    text += `Total articles: ${articles.length}\n`;
-    text += `Last updated: ${lastUpdated}\n`;
-    text += `Generated: ${new Date().toLocaleString()}\n`;
-    text += '\n' + '='.repeat(80) + '\n\n';
-    
-    if (articles.length === 0) {
-      text += 'No articles yet. Add sources and POST to /api/fetch to load them.\n';
-    } else {
-      for (let i = 0; i < articles.length; i++) {
-        const a = articles[i];
-        const date = new Date(a.published_at).toLocaleString();
-        text += `${i + 1}. ${a.title}\n`;
-        text += `   Source: ${a.sourceName} | ${date}\n`;
-        text += `   Link: ${a.link}\n`;
-        text += `   ${(a.summary || '').replace(/\n/g, ' ')}\n`;
-        text += '\n' + '-'.repeat(80) + '\n\n';
-      }
-    }
-    
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    res.send(text);
-  } catch (e) {
-    console.error('Error generating plain text view:', e);
-    res.status(500).send('Error loading feed\n');
-  }
-});
-
-app.get('/text', (req, res) => {
-  try {
-    const articles = JSON.parse(fs.readFileSync(articlesPath, 'utf8'));
-    articles.sort((a, b) => new Date(b.published_at) - new Date(a.published_at));
-    
-    // Find the most recent fetch time
-    let lastUpdated = 'Never';
-    if (articles.length > 0) {
-      const lastFetch = articles
-        .map(a => new Date(a.fetched_at))
-        .sort((a, b) => b - a)[0];
-      lastUpdated = lastFetch.toLocaleString();
-    }
-    
-    let html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>News Feed - Text Mode</title>
-  <style>
-    body { font-family: monospace; line-height: 1.6; max-width: 80ch; margin: 2rem auto; padding: 0 1rem; }
-    h1 { border-bottom: 2px solid #999; padding-bottom: 0.5rem; margin-bottom: 0.5rem; color: #555; }
-    .last-updated-line { font-weight: bold; color: #0066cc; margin: 0.5rem 0 1rem 0; }
-    h2 { margin-top: 2rem; }
-    .article { margin: 2rem 0; border-bottom: 1px solid #ccc; padding-bottom: 1rem; }
-    .meta { color: #666; font-size: 0.9em; }
-    a { color: #0066cc; text-decoration: underline; }
-    a:hover { background: #0066cc; color: #fff; }
-    .nav { margin: 1rem 0; padding: 1rem; background: #f5f5f5; }
-    .nav a { margin-right: 2rem; }
-  </style>
-</head>
-<body>
-  <h1>News Feed - Text Mode</h1>
-  <p class="last-updated-line">Last updated: ${lastUpdated}</p>
-  <div class="nav">
-    <a href="/graphical">[Graphical Version]</a>
-    <a href="/text">[Refresh]</a>
-    <form method="POST" action="/api/fetch" style="display:inline;" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Fetching...';">
-      <button type="submit" style="font-family:monospace;cursor:pointer;">[Fetch Articles]</button>
-    </form>
-    <span>Articles: ${articles.length}</span>
-  </div>
-  
-  <main>`;
-    
-    if (articles.length === 0) {
-      html += '<p>No articles yet. Add sources and click "Fetch Articles" to load them.</p>';
-    } else {
-      for (const a of articles) {
-        const date = new Date(a.published_at).toLocaleString();
-        html += `
-  <article class="article">
-    <h2><a href="${a.link}">${escapeHtml(a.title)}</a></h2>
-    <p>${escapeHtml(a.summary)}</p>
-    <p class="meta">${escapeHtml(date)} | Source: ${escapeHtml(a.sourceName)}</p>
-  </article>`;
-      }
-    }
-    
-    html += `
-  </main>
-  
-  <footer>
-    <p>-- End of feed --</p>
-    <p><a href="#">[Back to top]</a></p>
-  </footer>
-</body>
-</html>`;
-    
-    res.send(html);
-  } catch (e) {
-    console.error('Error generating text view:', e);
-    res.status(500).send('<h1>Error loading feed</h1>');
-  }
-});
-
-function escapeHtml(text) {
-  if (!text) return '';
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
 
 // ---------- Serve the frontend ----------
 app.use(express.static(path.join(__dirname, '../public')));
 
-// Redirect root to text view (default)
+// Root - serve index.html
 app.get('/', (req, res) => {
-  res.redirect('/text');
-});
-
-// Graphical version
-app.get('/graphical', (req, res) => {
   const indexPath = path.join(__dirname, '../public/index.html');
   if (fs.existsSync(indexPath)) {
     res.sendFile(indexPath);
@@ -445,5 +436,4 @@ app.use((req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
-  console.log('Text mode is default. Use /graphical for the graphical version.');
 });

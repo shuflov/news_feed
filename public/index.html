@@ -3,84 +3,262 @@
 <head>
   <meta charset="UTF-8">
   <title>News Feed</title>
-  <style></style>
-  <link rel="stylesheet" href="style.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; background: #f5f5f5; min-height: 100vh; }
+    body.dark-mode { background: #1a1a1a; color: #e0e0e0; }
+    body.dark-mode .header { background: #2a2a2a; }
+    body.dark-mode .header h1 { color: #e0e0e0; }
+    body.dark-mode .feed-controls { background: #2a2a2a; }
+    body.dark-mode .sources-panel { background: #2a2a2a; }
+    body.dark-mode .sources-panel h2, body.dark-mode .sources-panel h3 { color: #e0e0e0; }
+    body.dark-mode input, body.dark-mode select { background: #3a3a3a; color: #e0e0e0; border-color: #555; }
+    body.dark-mode .article { background: #2a2a2a; border-color: #444; }
+    body.dark-mode .stock-card { background: #2a2a2a; }
+    body.dark-mode .stock-card .stock-symbol { color: #aaa; }
+    body.dark-mode .source-item { background: #333; }
+    body.dark-mode .panel-header { background: #222; }
+    body.dark-mode .stocks-container { background: #2a2a2a; }
+    
+    .auth-container { display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 1rem; }
+    .auth-box { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 400px; width: 100%; }
+    body.dark-mode .auth-box { background: #2a2a2a; }
+    .auth-box h1 { text-align: center; margin-bottom: 1.5rem; }
+    .auth-box input, .auth-box select { width: 100%; padding: 0.75rem; margin-bottom: 1rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; }
+    .auth-box button { width: 100%; padding: 0.75rem; background: #0066cc; color: white; border: none; border-radius: 4px; font-size: 1rem; cursor: pointer; margin-bottom: 0.5rem; }
+    .auth-box button:hover { background: #0052a3; }
+    .auth-box button.secondary { background: #666; }
+    .auth-box button.secondary:hover { background: #555; }
+    .auth-error { color: #cc0000; margin-bottom: 1rem; text-align: center; }
+    body.dark-mode .auth-error { color: #ff6666; }
+    .auth-switch { text-align: center; margin-top: 1rem; }
+    .auth-switch a { color: #0066cc; cursor: pointer; }
+    
+    .app-container { display: none; }
+    .app-container.active { display: block; }
+    
+    .header { background: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .header h1 { font-size: 1.5rem; }
+    .header-right { display: flex; align-items: center; gap: 1rem; }
+    
+    .feed-controls { background: white; padding: 1rem 2rem; display: flex; gap: 1rem; flex-wrap: wrap; }
+    .refresh-btn, .manage-btn, .logout-btn { padding: 0.5rem 1rem; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem; }
+    .refresh-btn { background: #0066cc; color: white; }
+    .manage-btn { background: #28a745; color: white; }
+    .logout-btn { background: #dc3545; color: white; }
+    
+    .sources-panel { background: white; margin: 1rem 2rem; padding: 1.5rem; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .close-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; }
+    .add-source-section { margin-bottom: 1.5rem; }
+    .add-source-section h3 { margin-bottom: 0.5rem; }
+    .add-source-section form { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .add-source-section input, .add-source-section select { flex: 1; min-width: 150px; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; }
+    .add-source-section button { padding: 0.5rem 1rem; background: #0066cc; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    
+    .sources-list-section h3 { margin-bottom: 0.5rem; }
+    .source-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: #f9f9f9; border-radius: 4px; margin-bottom: 0.5rem; }
+    .source-info { display: flex; align-items: center; gap: 0.5rem; }
+    .source-type { background: #0066cc; color: white; padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.75rem; }
+    .source-status.enabled { color: #28a745; }
+    .source-status.disabled { color: #dc3545; }
+    .delete-btn { padding: 0.3rem 0.7rem; background: #dc3545; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.8rem; }
+    
+    .stocks-container { background: white; margin: 1rem 2rem; padding: 1rem; border-radius: 8px; }
+    .stocks-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; }
+    .stock-card { background: #f9f9f9; padding: 1rem; border-radius: 8px; text-align: center; }
+    .stock-card .stock-symbol { color: #666; font-size: 0.9rem; margin-bottom: 0.5rem; }
+    .stock-card .stock-price { font-size: 1.25rem; font-weight: bold; }
+    .stock-card .stock-change { font-size: 0.85rem; margin-top: 0.25rem; }
+    .stock-card .stock-change.positive { color: #28a745; }
+    .stock-card .stock-change.negative { color: #dc3545; }
+    .last-update { font-size: 0.75rem; color: #888; }
+    .refresh-btn-sm { padding: 0.25rem 0.5rem; cursor: pointer; }
+    
+    #feed { padding: 1rem 2rem; }
+    .article { background: white; padding: 1.5rem; margin-bottom: 1rem; border-radius: 8px; border-left: 4px solid #0066cc; }
+    .article h3 { margin-bottom: 0.5rem; }
+    .article h3 a { color: #0066cc; text-decoration: none; }
+    .article h3 a:hover { text-decoration: underline; }
+    .article .summary { color: #555; margin-bottom: 0.5rem; }
+    .article .meta { font-size: 0.85rem; color: #888; }
+    
+    .dark-mode-toggle { padding: 0.5rem 1rem; cursor: pointer; }
+  </style>
 </head>
 <body>
   <noscript>
     <div style="border: 2px solid #cc0000; padding: 1rem; margin: 1rem; background: #ffeeee;">
-      <p><strong>JavaScript is disabled.</strong></p>
-      <p>This page requires JavaScript to display articles. Please either:</p>
-      <ul>
-        <li><a href="/">Use the text-only version</a> (recommended for terminal browsers)</li>
-        <li>Enable JavaScript in your browser</li>
-      </ul>
+      <p><strong>JavaScript is required.</strong></p>
+      <p>Please enable JavaScript in your browser.</p>
     </div>
   </noscript>
 
-  <div class="header">
-    <h1>News Feed</h1>
-    <div>
-      <a href="/" style="margin-right: 1rem; font-size: 0.9em;">Text Mode</a>
-      <button class="dark-mode-toggle" id="darkModeToggle">
-        🌙 Dark Mode
-      </button>
+  <div id="authScreen" class="auth-container">
+    <div class="auth-box">
+      <h1 id="authTitle">Login</h1>
+      <div id="authError" class="auth-error"></div>
+      <form id="authForm">
+        <input type="email" id="authEmail" placeholder="Email" required>
+        <input type="password" id="authPassword" placeholder="Password" required>
+        <button type="submit" id="authSubmit">Login</button>
+      </form>
+      <div class="auth-switch">
+        <span id="authSwitchText">Don't have an account?</span>
+        <a id="authSwitchLink"> Register</a>
+      </div>
     </div>
   </div>
 
-  <section class="feed-controls">
-    <button id="refreshBtn" class="refresh-btn">Refresh Feed</button>
-    <button id="manageSourcesBtn" class="manage-btn">Manage Sources</button>
-  </section>
-
-  <section id="sourcesPanel" class="sources-panel" style="display: none;">
-    <div class="panel-header">
-      <h2>Manage Sources</h2>
-      <button id="closeSourcesBtn" class="close-btn">&times;</button>
-    </div>
-    
-    <div class="add-source-section">
-      <h3>Add New Source</h3>
-      <form id="addForm">
-        <input placeholder="Name" id="name" required>
-        <input placeholder="URL" id="url" required>
-        <select id="type" title="Select Source Type">
-          <option value="rss">RSS</option>
-        </select>
-        <button type="submit">Add Source</button>
-      </form>
-    </div>
-
-    <div class="sources-list-section">
-      <h3>Current Sources</h3>
-      <div id="sourcesList"></div>
-    </div>
-  </section>
-
-  <section id="stocksContainer" class="stocks-container">
-    <div class="panel-header">
-      <h2>Market Watch</h2>
-      <button id="refreshStocksBtn" class="refresh-btn-sm" title="Refresh stocks">↻</button>
-      <span class="last-update" id="stocksLastUpdate">--</span>
-    </div>
-    <div class="stocks-grid" id="stocksGrid">
-      <div class="stock-card loading">
-        <div class="stock-symbol">Loading...</div>
+  <div id="appContainer" class="app-container">
+    <div class="header">
+      <h1>News Feed</h1>
+      <div class="header-right">
+        <span id="userEmail" style="font-size: 0.9em; color: #666;"></span>
+        <button class="dark-mode-toggle" id="darkModeToggle">🌙 Dark Mode</button>
+        <button class="logout-btn" id="logoutBtn">Logout</button>
       </div>
     </div>
-  </section>
 
-  <section id="feed"></section>
+    <section class="feed-controls">
+      <button id="refreshBtn" class="refresh-btn">Refresh Feed</button>
+      <button id="manageSourcesBtn" class="manage-btn">Manage Sources</button>
+    </section>
+
+    <section id="sourcesPanel" class="sources-panel" style="display: none;">
+      <div class="panel-header">
+        <h2>Manage Sources</h2>
+        <button id="closeSourcesBtn" class="close-btn">&times;</button>
+      </div>
+      
+      <div class="add-source-section">
+        <h3>Add New Source</h3>
+        <form id="addForm">
+          <input placeholder="Name" id="name" required>
+          <input placeholder="URL" id="url" required>
+          <select id="type">
+            <option value="rss">RSS</option>
+          </select>
+          <button type="submit">Add Source</button>
+        </form>
+      </div>
+
+      <div class="sources-list-section">
+        <h3>Current Sources</h3>
+        <div id="sourcesList"></div>
+      </div>
+    </section>
+
+    <section id="stocksContainer" class="stocks-container">
+      <div class="panel-header">
+        <h2>Market Watch</h2>
+        <button id="refreshStocksBtn" class="refresh-btn-sm" title="Refresh stocks">↻</button>
+        <span class="last-update" id="stocksLastUpdate">--</span>
+      </div>
+      <div class="stocks-grid" id="stocksGrid">
+        <div class="stock-card loading">
+          <div class="stock-symbol">Loading...</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="feed"></section>
+  </div>
 
   <script>
-    // Mark body as JS-enabled for progressive enhancement
-    document.body.classList.add('js-enabled');
-    
-    // Dark mode toggle functionality
+    let isLoginMode = true;
+
+    function showAuthError(msg) {
+      document.getElementById('authError').textContent = msg;
+    }
+
+    function clearAuthError() {
+      document.getElementById('authError').textContent = '';
+    }
+
+    function switchAuthMode() {
+      isLoginMode = !isLoginMode;
+      document.getElementById('authTitle').textContent = isLoginMode ? 'Login' : 'Register';
+      document.getElementById('authSubmit').textContent = isLoginMode ? 'Login' : 'Register';
+      document.getElementById('authSwitchText').textContent = isLoginMode ? "Don't have an account?" : "Already have an account?";
+      document.getElementById('authSwitchLink').textContent = isLoginMode ? " Register" : " Login";
+      clearAuthError();
+    }
+
+    document.getElementById('authSwitchLink').addEventListener('click', switchAuthMode);
+
+    document.getElementById('authForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearAuthError();
+      
+      const email = document.getElementById('authEmail').value;
+      const password = document.getElementById('authPassword').value;
+      const endpoint = isLoginMode ? '/api/auth/login' : '/api/auth/register';
+      
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        
+        const data = await res.json();
+        
+        if (!res.ok) {
+          throw new Error(data.error || 'Authentication failed');
+        }
+        
+        currentUserEmail = data.email || '';
+        document.getElementById('authForm').reset();
+        showApp();
+      } catch (err) {
+        showAuthError(err.message);
+      }
+    });
+
+    async function logout() {
+      try {
+        await fetch('/api/auth/logout', { method: 'POST' });
+      } catch (e) {}
+      showAuth();
+    }
+
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+
+    let currentUserEmail = '';
+
+    function showAuth() {
+      document.getElementById('authScreen').style.display = 'flex';
+      document.getElementById('appContainer').classList.remove('active');
+    }
+
+    function showApp() {
+      document.getElementById('authScreen').style.display = 'none';
+      document.getElementById('appContainer').classList.add('active');
+      document.getElementById('userEmail').textContent = currentUserEmail;
+      loadFeed();
+      loadStocks();
+    }
+
+    async function checkAuth() {
+      try {
+        const res = await fetch('/api/auth/me', { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          currentUserEmail = data.email || '';
+          showApp();
+        } else {
+          showAuth();
+        }
+      } catch (e) {
+        showAuth();
+      }
+    }
+
     const darkModeToggle = document.getElementById('darkModeToggle');
     const body = document.body;
     
-    // Check for saved theme preference or default to system preference
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'dark') {
       body.classList.add('dark-mode');
@@ -89,7 +267,6 @@
       body.classList.add('light-mode');
       updateToggleButton(false);
     } else {
-      // Use system preference
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       updateToggleButton(prefersDark);
     }
@@ -97,8 +274,6 @@
     darkModeToggle.addEventListener('click', () => {
       const isDark = body.classList.toggle('dark-mode');
       body.classList.toggle('light-mode');
-      
-      // Save preference
       localStorage.setItem('theme', isDark ? 'dark' : 'light');
       updateToggleButton(isDark);
     });
@@ -109,47 +284,36 @@
 
     async function loadFeed() {
       try {
-        const res = await fetch('/api/feed');
+        const res = await fetch('/api/feed', { credentials: 'include' });
+        if (!res.ok) throw new Error(`Server error: ${res.status}`);
         
-        // Check if response is OK
-        if (!res.ok) {
-          throw new Error(`Server error: ${res.status}`);
-        }
-        
-        // Check if response is actually JSON
-        const contentType = res.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          throw new Error('Server returned non-JSON response');
-        }
-        
-        let articles = await res.json();
-        // Shuffle articles for random order
-        articles = articles.sort(() => Math.random() - 0.5);
+        const articles = await res.json();
         const container = document.getElementById('feed');
         container.innerHTML = '';
         
-         if (articles.length === 0) {
-          container.innerHTML = '<p>No articles yet. Add a source and click "Fetch Articles" in Text Mode to load them.</p>';
+        if (articles.length === 0) {
+          container.innerHTML = '<p>No articles yet. Add sources and click "Fetch Articles" to load them.</p>';
           return;
         }
+        
+        articles.sort(() => Math.random() - 0.5);
         
         articles.forEach(a => {
           const div = document.createElement('div');
           div.className = 'article';
           div.innerHTML = `
-  <h3><a href="${a.link}" target="_blank">${a.title}</a></h3>
-  <p class="summary">${a.summary}</p>
-  <div class="meta">
-    <span class="meta-date">${new Date(a.published_at).toLocaleString()}</span>
-    <span class="meta-source">${a.sourceName}</span>
-  </div>
-`;
+            <h3><a href="${a.link}" target="_blank">${a.title}</a></h3>
+            <p class="summary">${a.summary || ''}</p>
+            <div class="meta">
+              <span class="meta-date">${new Date(a.published_at).toLocaleString()}</span>
+              <span class="meta-source"> | ${a.sourceName}</span>
+            </div>
+          `;
           container.appendChild(div);
         });
       } catch (error) {
         console.error('Error loading feed:', error);
-        document.getElementById('feed').innerHTML = 
-          `<p style="color:red;">Error loading feed: ${error.message}</p>`;
+        document.getElementById('feed').innerHTML = `<p style="color:red;">Error loading feed: ${error.message}</p>`;
       }
     }
 
@@ -158,26 +322,35 @@
       const name = document.getElementById('name').value;
       const url = document.getElementById('url').value;
       const type = document.getElementById('type').value;
-      await fetch('/api/sources', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({name, url, type})
-      });
-      e.target.reset();
-      loadSources(); // Refresh the sources list
-         alert('Source added – click "Fetch Articles" to load articles.');
+      
+      try {
+        const res = await fetch('/api/sources', {
+          method: 'POST',
+          credentials: 'include',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({name, url, type})
+        });
+        
+        if (!res.ok) {
+          const err = await res.json();
+          alert(err.error || 'Failed to add source');
+        } else {
+          e.target.reset();
+          loadSources();
+          alert('Source added! Click "Refresh Feed" to load articles.');
+        }
+      } catch (error) {
+        alert('Error adding source');
+      }
     });
 
-    // Manual refresh button - fetches new articles from sources
     document.getElementById('refreshBtn').addEventListener('click', async () => {
       const btn = document.getElementById('refreshBtn');
       btn.disabled = true;
       btn.textContent = 'Fetching...';
       
       try {
-        // First fetch new articles from sources
-        await fetch('/api/fetch', { method: 'POST' });
-        // Then reload the feed display
+        await fetch('/api/fetch', { method: 'POST', credentials: 'include' });
         await loadFeed();
       } catch (error) {
         console.error('Error refreshing feed:', error);
@@ -187,7 +360,6 @@
       }
     });
 
-    // Sources panel management
     const sourcesPanel = document.getElementById('sourcesPanel');
     const manageSourcesBtn = document.getElementById('manageSourcesBtn');
     const closeSourcesBtn = document.getElementById('closeSourcesBtn');
@@ -203,7 +375,7 @@
 
     async function loadSources() {
       try {
-        const res = await fetch('/api/sources');
+        const res = await fetch('/api/sources', { credentials: 'include' });
         const sources = await res.json();
         const container = document.getElementById('sourcesList');
         
@@ -226,34 +398,25 @@
         `).join('');
       } catch (error) {
         console.error('Error loading sources:', error);
-        document.getElementById('sourcesList').innerHTML = 
-          `<p style="color:red;">Error loading sources</p>`;
+        document.getElementById('sourcesList').innerHTML = `<p style="color:red;">Error loading sources</p>`;
       }
     }
 
     window.deleteSource = async function(id) {
-      if (!confirm('Are you sure you want to delete this source?')) return;
+      if (!confirm('Delete this source?')) return;
       
       try {
-        // Note: You'll need to add a DELETE endpoint to server.js
         const res = await fetch(`/api/sources/${id}`, {
-          method: 'DELETE'
+          method: 'DELETE',
+          credentials: 'include'
         });
-        
-        if (res.ok) {
-          loadSources();
-        } else {
-          alert('Failed to delete source');
-        }
+        if (res.ok) loadSources();
+        else alert('Failed to delete source');
       } catch (error) {
-        console.error('Error deleting source:', error);
         alert('Error deleting source');
       }
     };
 
-    loadFeed();
-
-    // Stocks Grid Functionality
     const stockSymbols = {
       'TSLA': 'Tesla',
       'BTC-USD': 'Bitcoin',
@@ -265,7 +428,6 @@
       try {
         const response = await fetch('/api/stocks');
         const stocks = await response.json();
-        
         const grid = document.getElementById('stocksGrid');
         grid.innerHTML = '';
         
@@ -276,11 +438,7 @@
           const displayName = stockSymbols[stock.symbol] || stock.symbol;
           
           if (stock.error) {
-            card.innerHTML = `
-              <div class="stock-symbol">${displayName}</div>
-              <div class="stock-price">--</div>
-              <div class="stock-change">Unavailable</div>
-            `;
+            card.innerHTML = `<div class="stock-symbol">${displayName}</div><div class="stock-price">--</div><div class="stock-change">Unavailable</div>`;
           } else {
             card.innerHTML = `
               <div class="stock-symbol">${displayName}</div>
@@ -300,16 +458,10 @@
       }
     }
 
-    // Load initial stocks
-    loadStocks();
-
-    // Refresh stocks button
-    document.getElementById('refreshStocksBtn').addEventListener('click', () => {
-      loadStocks();
-    });
-
-    // Refresh stocks every 5 minutes for live updates
+    document.getElementById('refreshStocksBtn').addEventListener('click', loadStocks);
     setInterval(loadStocks, 300000);
+
+    checkAuth();
   </script>
 </body>
 </html>
