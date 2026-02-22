@@ -83,10 +83,29 @@
     .article .summary { color: #555; margin-bottom: 0.5rem; }
     .article .meta { font-size: 0.85rem; color: #888; }
     
-    .dark-mode-toggle { padding: 0.5rem 1rem; cursor: pointer; }
+.dark-mode-toggle { padding: 0.5rem 1rem; cursor: pointer; }
+    .status-bar { display: flex; gap: 1rem; align-items: center; font-size: 0.75rem; padding: 0.5rem 1rem; background: #f0f0f0; border-bottom: 1px solid #ddd; }
+    .status-bar .status-item { display: flex; align-items: center; gap: 0.3rem; }
+    .status-bar .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #dc3545; }
+    .status-bar .status-dot.connected { background: #28a745; }
+    body.dark-mode .status-bar { background: #333; border-color: #555; }
   </style>
 </head>
 <body>
+  <div class="status-bar">
+    <div class="status-item">
+      <span class="status-dot" id="serverDot"></span>
+      <span>Server: <strong id="serverStatus">Checking...</strong></span>
+    </div>
+    <div class="status-item">
+      <span>URL: <strong id="serverUrl"></strong></span>
+    </div>
+    <div class="status-item">
+      <span class="status-dot" id="connectedDot"></span>
+      <span>Connected: <strong id="connectedStatus">--</strong></span>
+    </div>
+  </div>
+
   <noscript>
     <div style="border: 2px solid #cc0000; padding: 1rem; margin: 1rem; background: #ffeeee;">
       <p><strong>JavaScript is required.</strong></p>
@@ -165,8 +184,36 @@
     <section id="feed"></section>
   </div>
 
-  <script>
+<script>
     const API_BASE = 'https://stealthier-amirah-duteously.ngrok-free.dev';
+
+    document.getElementById('serverUrl').textContent = API_BASE;
+
+    async function checkServerStatus() {
+      const serverDot = document.getElementById('serverDot');
+      const serverStatus = document.getElementById('serverStatus');
+      const connectedDot = document.getElementById('connectedDot');
+      const connectedStatus = document.getElementById('connectedStatus');
+      
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/me`, { 
+          credentials: 'include',
+          mode: 'cors'
+        });
+        serverDot.classList.add('connected');
+        serverStatus.textContent = 'Online';
+        connectedDot.classList.add('connected');
+        connectedStatus.textContent = 'Yes';
+      } catch (e) {
+        serverDot.classList.remove('connected');
+        serverStatus.textContent = 'Offline';
+        connectedDot.classList.remove('connected');
+        connectedStatus.textContent = 'No';
+      }
+    }
+
+    checkServerStatus();
+    setInterval(checkServerStatus, 10000);
 
     let isLoginMode = true;
 
