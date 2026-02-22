@@ -166,6 +166,8 @@
   </div>
 
   <script>
+    const API_BASE = 'https://stealthier-amirah-duteously.ngrok-free.dev';
+
     let isLoginMode = true;
 
     function showAuthError(msg) {
@@ -193,7 +195,7 @@
       
       const email = document.getElementById('authEmail').value;
       const password = document.getElementById('authPassword').value;
-      const endpoint = isLoginMode ? '/api/auth/login' : '/api/auth/register';
+      const endpoint = isLoginMode ? `${API_BASE}/api/auth/login` : `${API_BASE}/api/auth/register`;
       
       try {
         const res = await fetch(endpoint, {
@@ -219,7 +221,7 @@
 
     async function logout() {
       try {
-        await fetch('/api/auth/logout', { method: 'POST' });
+        await fetch(`${API_BASE}/api/auth/logout`, { method: 'POST' });
       } catch (e) {}
       showAuth();
     }
@@ -243,7 +245,7 @@
 
     async function checkAuth() {
       try {
-        const res = await fetch('/api/auth/me', { credentials: 'include' });
+        const res = await fetch(`${API_BASE}/api/auth/me`, { credentials: 'include' });
         if (res.ok) {
           const data = await res.json();
           currentUserEmail = data.email || '';
@@ -284,7 +286,7 @@
 
     async function loadFeed() {
       try {
-        const res = await fetch('/api/feed', { credentials: 'include' });
+        const res = await fetch(`${API_BASE}/api/feed`, { credentials: 'include' });
         if (!res.ok) throw new Error(`Server error: ${res.status}`);
         
         const articles = await res.json();
@@ -324,7 +326,7 @@
       const type = document.getElementById('type').value;
       
       try {
-        const res = await fetch('/api/sources', {
+        const res = await fetch(`${API_BASE}/api/sources`, {
           method: 'POST',
           credentials: 'include',
           headers: {'Content-Type':'application/json'},
@@ -350,7 +352,7 @@
       btn.textContent = 'Fetching...';
       
       try {
-        await fetch('/api/fetch', { method: 'POST', credentials: 'include' });
+        await fetch(`${API_BASE}/api/fetch`, { method: 'POST', credentials: 'include' });
         await loadFeed();
       } catch (error) {
         console.error('Error refreshing feed:', error);
@@ -375,7 +377,7 @@
 
     async function loadSources() {
       try {
-        const res = await fetch('/api/sources', { credentials: 'include' });
+        const res = await fetch(`${API_BASE}/api/sources`, { credentials: 'include' });
         const sources = await res.json();
         const container = document.getElementById('sourcesList');
         
@@ -406,7 +408,7 @@
       if (!confirm('Delete this source?')) return;
       
       try {
-        const res = await fetch(`/api/sources/${id}`, {
+        const res = await fetch(`${API_BASE}/api/sources/${id}`, {
           method: 'DELETE',
           credentials: 'include'
         });
@@ -426,7 +428,7 @@
 
     async function loadStocks() {
       try {
-        const response = await fetch('/api/stocks');
+        const response = await fetch(`${API_BASE}/api/stocks`);
         const stocks = await response.json();
         const grid = document.getElementById('stocksGrid');
         grid.innerHTML = '';
