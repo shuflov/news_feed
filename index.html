@@ -428,7 +428,7 @@
 
     async function loadStocks() {
       try {
-        const response = await fetch(`${API_BASE}/api/stocks`);
+        const response = await fetch(`${API_BASE}/api/stocks`, { credentials: 'include' });
         const stocks = await response.json();
         const grid = document.getElementById('stocksGrid');
         grid.innerHTML = '';
