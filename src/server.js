@@ -11,6 +11,7 @@ const ai = require('./utils/ai');
 const app = express();
 
 // Manual CORS headers instead of cors middleware
+// Replace the current CORS middleware with this:
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   const allowedOrigins = [
@@ -18,12 +19,17 @@ app.use((req, res, next) => {
     'https://stealthier-amirah-duteously.ngrok-free.dev'
   ];
   
+  // Set CORS for all responses
   if (allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, ngrok-skip-browser-warning');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  } else {
+    // Also allow the ngrok URL if origin is not set (like from ngrok warning page)
+    res.setHeader('Access-Control-Allow-Origin', 'https://shuflov.github.io');
   }
+  
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, ngrok-skip-browser-warning, Authorization');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   
   if (req.method === 'OPTIONS') {
     return res.sendStatus(204);
