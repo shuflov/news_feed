@@ -10,10 +10,27 @@ const ai = require('./utils/ai');
 
 const app = express();
 
-app.use(cors({
-  origin: 'https://shuflov.github.io',
-  credentials: true
-}));
+// Manual CORS headers instead of cors middleware
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    'https://shuflov.github.io',
+    'https://stealthier-amirah-duteously.ngrok-free.dev'
+  ];
+  
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, ngrok-skip-browser-warning');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  }
+  
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  
+  next();
+});
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -22,11 +39,13 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'news-feed-secret-key-change-in-production',
   resave: false,
   saveUninitialized: false,
+  store: new session.MemoryStore(),
   cookie: { 
-    secure: process.env.NODE_ENV === 'production',
+    secure: true,
     httpOnly: true,
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    maxAge: 30 * 24 * 60 * 60 * 1000 
+    sameSite: 'none',
+    maxAge: 30 * 24 * 60 * 60 * 1000,
+    domain: undefined // Let browser set it automatically
   }
 }));
 
@@ -143,12 +162,23 @@ app.post('/api/auth/login', async (req, res) => {
     req.session.userId = user.id;
     req.session.email = user.email;
     
-    req.session.save((err) => {
-      if (err) {
-        console.error('Session save error:', err);
-      }
+    console.log('Login - Session ID:', req.session.id);
+    console.log('Login - Session cookie:', req.session.cookie);
+    
+    // Wait for session to be saved before responding
+    await new Promise((resolve, reject) => {
+      req.session.save((err) => {
+        if (err) {
+          console.error('Session save error:', err);
+          reject(err);
+        } else {
+          console.log('Session saved successfully');
+          resolve();
+        }
+      });
     });
     
+    console.log('Sending response to client');
     res.json({ success: true, userId: user.id, email: user.email });
   } catch (e) {
     console.error('Error logging in:', e);
