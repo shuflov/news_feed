@@ -1,6 +1,10 @@
 node_modules/
 .env
+.env.*
+!.env.example
 .DS_Store
 *.log
-src/data/*.json
-data/
+data/*.json
+data/users/
+data/*.db
+data/*.db-*
