@@ -166,13 +166,23 @@
   </div>
 
   <script>
+    // API Base URL - auto-detect based on environment
+    // For local development use: 'http://localhost:3000'
+    // For production change to your backend URL
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const API_BASE = isLocal ? 'http://localhost:3000' : 'http://localhost:3000';
+    // TODO: Update production API_BASE when deploying to your own server
+    // const API_BASE = 'https://your-server.com';
+
     // Helper: make API calls
     function apiFetch(url, opts = {}) {
-      return fetch(url, {
+      const fullUrl = url.startsWith('http') ? url : API_BASE + url;
+      return fetch(fullUrl, {
         ...opts,
         headers: {
           ...(opts.headers || {})
-        }
+        },
+        credentials: 'include'
       });
     }
 
@@ -208,7 +218,6 @@
       try {
         const res = await apiFetch(endpoint, {
           method: 'POST',
-          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
         });
@@ -229,7 +238,7 @@
 
     async function logout() {
       try {
-        await apiFetch(`/api/auth/logout`, { method: 'POST', credentials: 'include' });
+        await apiFetch(`/api/auth/logout`, { method: 'POST' });
       } catch (e) {}
       showAuth();
     }
@@ -253,7 +262,7 @@
 
     async function checkAuth() {
       try {
-        const res = await apiFetch(`/api/auth/me`, { credentials: 'include' });
+        const res = await apiFetch(`/api/auth/me`);
         if (res.ok) {
           const data = await res.json();
           currentUserEmail = data.email || '';
@@ -294,7 +303,7 @@
 
     async function loadFeed() {
       try {
-        const res = await apiFetch(`/api/feed`, { credentials: 'include' });
+        const res = await apiFetch(`/api/feed`);
         if (!res.ok) throw new Error(`Server error: ${res.status}`);
         
         const articles = await res.json();
@@ -336,7 +345,6 @@
       try {
         const res = await apiFetch(`/api/sources`, {
           method: 'POST',
-          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, url, type })
         });
@@ -360,7 +368,7 @@
       btn.textContent = 'Fetching...';
       
       try {
-        await apiFetch(`/api/fetch`, { method: 'POST', credentials: 'include' });
+        await apiFetch(`/api/fetch`, { method: 'POST' });
         await loadFeed();
       } catch (error) {
         console.error('Error refreshing feed:', error);
@@ -385,7 +393,7 @@
 
     async function loadSources() {
       try {
-        const res = await apiFetch(`/api/sources`, { credentials: 'include' });
+        const res = await apiFetch(`/api/sources`);
         const sources = await res.json();
         const container = document.getElementById('sourcesList');
         
@@ -417,8 +425,7 @@
       
       try {
         const res = await apiFetch(`/api/sources/${id}`, {
-          method: 'DELETE',
-          credentials: 'include'
+          method: 'DELETE'
         });
         if (res.ok) loadSources();
         else alert('Failed to delete source');

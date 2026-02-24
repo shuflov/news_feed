@@ -11,6 +11,30 @@ const parser = new Parser();
 
 const isProduction = process.env.NODE_ENV === 'production';
 
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    'https://shuflov.github.io',
+    'http://localhost:3000'
+  ];
+  
+  if (allowedOrigins.includes(origin) || !isProduction) {
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', 'https://shuflov.github.io');
+  }
+  
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  
+  next();
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -21,7 +45,7 @@ app.use(session({
   cookie: {
     secure: isProduction,
     httpOnly: true,
-    sameSite: isProduction ? 'lax' : false,
+    sameSite: isProduction ? 'none' : 'lax',
     maxAge: 30 * 24 * 60 * 60 * 1000
   }
 }));
