@@ -196,6 +196,8 @@
     function apiFetch(url, opts = {}) {
       return fetch(url, {
         ...opts,
+        credentials: 'include',
+        mode: 'cors',
         headers: {
           'ngrok-skip-browser-warning': 'true',
           ...(opts.headers || {})
@@ -210,9 +212,7 @@
       const connectedStatus = document.getElementById('connectedStatus');
       
       try {
-        const res = await apiFetch(`${API_BASE}/api/auth/me`, { 
-          credentials: 'include'
-        });
+        const res = await apiFetch(`${API_BASE}/api/auth/me`);
         serverDot.classList.add('connected');
         serverStatus.textContent = 'Online';
         connectedDot.classList.add('connected');
@@ -260,7 +260,6 @@
       try {
         const res = await apiFetch(endpoint, {
           method: 'POST',
-          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
         });
@@ -281,7 +280,7 @@
 
     async function logout() {
       try {
-        await apiFetch(`${API_BASE}/api/auth/logout`, { method: 'POST', credentials: 'include' });
+        await apiFetch(`${API_BASE}/api/auth/logout`, { method: 'POST' });
       } catch (e) {}
       showAuth();
     }
@@ -305,7 +304,7 @@
 
     async function checkAuth() {
       try {
-        const res = await apiFetch(`${API_BASE}/api/auth/me`, { credentials: 'include' });
+        const res = await apiFetch(`${API_BASE}/api/auth/me`);
         if (res.ok) {
           const data = await res.json();
           currentUserEmail = data.email || '';
@@ -346,7 +345,7 @@
 
     async function loadFeed() {
       try {
-        const res = await apiFetch(`${API_BASE}/api/feed`, { credentials: 'include' });
+        const res = await apiFetch(`${API_BASE}/api/feed`);
         if (!res.ok) throw new Error(`Server error: ${res.status}`);
         
         const articles = await res.json();
@@ -354,7 +353,7 @@
         container.innerHTML = '';
         
         if (articles.length === 0) {
-          container.innerHTML = '<p>No articles yet. Add sources and click "Refresh Feed" to load them.</p>';
+          container.innerHTML = '<p>No articles yet. Add sources and click "Fetch Articles" to load them.</p>';
           return;
         }
         
@@ -388,9 +387,8 @@
       try {
         const res = await apiFetch(`${API_BASE}/api/sources`, {
           method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, url, type })
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({name, url, type})
         });
         
         if (!res.ok) {
@@ -412,7 +410,7 @@
       btn.textContent = 'Fetching...';
       
       try {
-        await apiFetch(`${API_BASE}/api/fetch`, { method: 'POST', credentials: 'include' });
+        await apiFetch(`${API_BASE}/api/fetch`, { method: 'POST' });
         await loadFeed();
       } catch (error) {
         console.error('Error refreshing feed:', error);
@@ -437,7 +435,11 @@
 
     async function loadSources() {
       try {
-        const res = await apiFetch(`${API_BASE}/api/sources`, { credentials: 'include' });
+        const res = await apiFetch(`${API_BASE}/api/sources`);
+        if (!res.ok) {
+          document.getElementById('sourcesList').innerHTML = '<p>Not authorized. Please login again.</p>';
+          return;
+        }
         const sources = await res.json();
         const container = document.getElementById('sourcesList');
         
@@ -469,8 +471,7 @@
       
       try {
         const res = await apiFetch(`${API_BASE}/api/sources/${id}`, {
-          method: 'DELETE',
-          credentials: 'include'
+          method: 'DELETE'
         });
         if (res.ok) loadSources();
         else alert('Failed to delete source');
@@ -486,9 +487,9 @@
       '^GSPC': 'S&P 500'
     };
 
-async function loadStocks() {
+    async function loadStocks() {
       try {
-        const response = await apiFetch(`${API_BASE}/api/stocks`, { credentials: 'include' });
+        const response = await apiFetch(`${API_BASE}/api/stocks`);
         const stocks = await response.json();
         const grid = document.getElementById('stocksGrid');
         grid.innerHTML = '';
