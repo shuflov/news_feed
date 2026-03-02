@@ -94,6 +94,8 @@
     .article h3 a:hover { text-decoration: underline; }
     .article .summary { color: #555; margin-bottom: 0.5rem; }
     .article .meta { font-size: 0.85rem; color: #888; }
+    .article .meta-source { color: #d4a000; font-weight: 500; }
+    body.dark-mode .article .meta-source { color: #f0c000; }
     
     .dark-mode-toggle { padding: 0.5rem 1rem; cursor: pointer; }
   </style>
@@ -333,7 +335,7 @@
             <p class="summary">${a.summary || ''}</p>
             <div class="meta">
               <span class="meta-date">${new Date(a.published_at).toLocaleString()}</span>
-              <span class="meta-source"> | ${a.sourceName}</span>
+              <span class="meta-source"> | ${a.source_name}</span>
             </div>
           `;
           container.appendChild(div);
