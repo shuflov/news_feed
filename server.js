@@ -7,7 +7,12 @@ const Parser = require('rss-parser');
 const { initializeDatabase, saveDatabase, userQueries, sourceQueries, articleQueries } = require('./database');
 
 const app = express();
-const parser = new Parser();
+const parser = new Parser({
+  timeout: 10000,
+  headers: {
+    'Accept-Charset': 'utf-8'
+  }
+});
 
 const isProduction = process.env.NODE_ENV === 'production';
 
